@@ -533,7 +533,7 @@ contains
           case('ssmi', 'ssmi_iaf')
              call dice_datamode_ssmi_restart_read(gcomp, restfilm, rpfile, logunit, my_task, mpicom, sdat)
           case('cplhist')
-             call dice_datamode_cplhist_restart_read(restfilm, rpfile, inst_suffix, logunit, my_task, mpicom, sdat)
+             call dice_datamode_cplhist_restart_read(restfilm, rpfile, logunit, my_task, mpicom, sdat)
           end select
        end if
 

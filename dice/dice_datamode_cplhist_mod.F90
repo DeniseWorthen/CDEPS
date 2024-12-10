@@ -180,12 +180,11 @@ contains
   end subroutine dice_datamode_cplhist_restart_write
 
   !===============================================================================
-  subroutine dice_datamode_cplhist_restart_read(rest_filem, rpfile, inst_suffix, logunit, my_task, mpicom, sdat)
+  subroutine dice_datamode_cplhist_restart_read(rest_filem, rpfile, logunit, my_task, mpicom, sdat)
 
     ! input/output arguments
     character(len=*)            , intent(inout) :: rest_filem
     character(len=*)            , intent(in)    :: rpfile
-    character(len=*)            , intent(in)    :: inst_suffix
     integer                     , intent(in)    :: logunit
     integer                     , intent(in)    :: my_task
     integer                     , intent(in)    :: mpicom
@@ -194,7 +193,7 @@ contains
 
     integer :: rc
 
-    call dshr_restart_read(rest_filem, rpfile, inst_suffix, nullstr, logunit, my_task, mpicom, sdat, rc)
+    call dshr_restart_read(rest_filem, rpfile, logunit, my_task, mpicom, sdat, rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   end subroutine dice_datamode_cplhist_restart_read
