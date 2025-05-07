@@ -67,6 +67,10 @@ module cdeps_datm_comp
   use datm_datamode_simple_mod  , only : datm_datamode_simple_init_pointers
   use datm_datamode_simple_mod  , only : datm_datamode_simple_advance
 
+  use datm_datamode_atmw_mod    , only : datm_datamode_atmw_advertise
+  use datm_datamode_atmw_mod    , only : datm_datamode_atmw_init_pointers
+  use datm_datamode_atmw_mod    , only : datm_datamode_atmw_advance
+
   implicit none
   private ! except
 
@@ -360,7 +364,8 @@ contains
          trim(datamode) == 'CPLHIST'      .or. &
          trim(datamode) == 'GEFS'         .or. &
          trim(datamode) == 'ERA5'         .or. &
-         trim(datamode) == 'SIMPLE') then
+         trim(datamode) == 'SIMPLE'       .or. &
+         trim(datamode) == 'ATMW') then
     else
        call shr_log_error(' ERROR illegal datm datamode = '//trim(datamode), rc=rc)
        return
@@ -393,6 +398,9 @@ contains
     case ('SIMPLE')
        call datm_datamode_simple_advertise(exportState, fldsExport, flds_scalar_name, &
             nlfilename, my_task, vm, rc)
+       if (ChkErr(rc,__LINE__,u_FILE_u)) return
+    case ('ATMW')
+       call datm_datamode_atmw_advertise(exportState, fldsExport, flds_scalar_name, rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
     end select
 
@@ -599,7 +607,7 @@ contains
 
     ! local variables
     logical :: first_time = .true.
-    character(len=CL) :: rpfile        
+    character(len=CL) :: rpfile
     character(*), parameter :: subName = '(datm_comp_run) '
     !-------------------------------------------------------------------------------
 
@@ -639,6 +647,9 @@ contains
        case('SIMPLE')
           call datm_datamode_simple_init_pointers(exportState, sdat, rc)
           if (ChkErr(rc,__LINE__,u_FILE_u)) return
+       case('ATMW')
+          call datm_datamode_atmw_init_pointers(exportState, sdat, rc)
+          if (ChkErr(rc,__LINE__,u_FILE_u)) return
        end select
 
        ! Read restart if needed
@@ -646,7 +657,7 @@ contains
           call shr_get_rpointer_name(gcomp, 'atm', target_ymd, target_tod, rpfile, 'read', rc)
           if (ChkErr(rc,__LINE__,u_FILE_u)) return
           select case (trim(datamode))
-          case('CORE2_NYF','CORE2_IAF','CORE_IAF_JRA','CLMNCEP','CPLHIST','ERA5','GEFS','SIMPLE')
+          case('CORE2_NYF','CORE2_IAF','CORE_IAF_JRA','CLMNCEP','CPLHIST','ERA5','GEFS','SIMPLE','ATMW')
              call dshr_restart_read(restfilm, rpfile, logunit, my_task, mpicom, sdat, rc)
              if (ChkErr(rc,__LINE__,u_FILE_u)) return
           case default
@@ -703,6 +714,10 @@ contains
        call datm_datamode_gefs_advance(exportstate, mainproc, logunit, mpicom, target_ymd, &
             target_tod, sdat%model_calendar, rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
+    case('ATMW')
+       call datm_datamode_atmw_advance(exportstate, mainproc, logunit, mpicom, target_ymd, &
+            target_tod, sdat%model_calendar, rc)
+       if (ChkErr(rc,__LINE__,u_FILE_u)) return
     case('SIMPLE')
        call datm_datamode_simple_advance(target_ymd, target_tod, target_mon, &
             sdat%model_calendar, rc)
@@ -714,7 +729,7 @@ contains
        call shr_get_rpointer_name(gcomp, 'atm', target_ymd, target_tod, rpfile, 'write', rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
        select case (trim(datamode))
-       case('CORE2_NYF','CORE2_IAF','CORE_IAF_JRA','CLMNCEP','CPLHIST','ERA5','GEFS','SIMPLE')
+       case('CORE2_NYF','CORE2_IAF','CORE_IAF_JRA','CLMNCEP','CPLHIST','ERA5','GEFS','SIMPLE','ATMW')
           call dshr_restart_write(rpfile, case_name, 'datm', inst_suffix, target_ymd, target_tod, logunit, &
                my_task, sdat, rc)
           if (ChkErr(rc,__LINE__,u_FILE_u)) return
