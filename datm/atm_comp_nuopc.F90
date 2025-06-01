@@ -563,6 +563,7 @@ contains
 
     restart_write = dshr_check_restart_alarm(clock, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
+    restart_write = .false.
 
     ! Run datm
     call ESMF_TraceRegionEnter('datm_run')
