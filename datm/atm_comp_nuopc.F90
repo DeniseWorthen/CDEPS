@@ -542,6 +542,8 @@ contains
   !===============================================================================
   subroutine ModelAdvance(gcomp, rc)
 
+    use ESMF, only : ESMF_ClockGetNextTime
+
     ! input/output variables
     type(ESMF_GridComp)  :: gcomp
     integer, intent(out) :: rc
@@ -564,12 +566,25 @@ contains
     real(R8)                :: orbObliqr     ! orb obliquity (radians)
     real(R8)                :: dayofYear
     character(len=*),parameter  :: subname=trim(modName)//':(ModelAdvance) '
+    ! debug
+    character(len=1) :: chour
     !-------------------------------------------------------------------------------
 
     rc = ESMF_SUCCESS
+    !tph = 3600/idt
+
+    call NUOPC_ModelGet(gcomp, modelClock=clock, rc=rc)
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
+    call ESMF_ClockGetNextTime(clock, nextTime, rc=rc)
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
+    call ESMF_TimeGet(nextTime, yy=yr, mm=mon, dd=day, s=next_tod, rc=rc)
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
 #ifdef UFS_TRACING
-    if (mype == 0) call ufs_trace("cdeps", "ModelAdvance", "B")
+    chour = ''
+    if (mod(next_tod,3600) == 0)chour = '0'
+    if (mype == 0) call ufs_trace("cdeps", "ModelAdvance"//trim(chour), "B")
+    if (mype == 0) print '(A,4i8,A)','XXX ',yr,mon,day,next_tod,'  '//chour
 #endif
 
     call ESMF_TraceRegionEnter(subname)
@@ -616,7 +631,7 @@ contains
     call ESMF_TraceRegionExit(subname)
 
 #ifdef UFS_TRACING
-    if (mype == 0) call ufs_trace("cdeps", "ModelAdvance", "E")
+    if (mype == 0) call ufs_trace("cdeps", "ModelAdvance"//trim(chour), "E")
 #endif
 
   end subroutine ModelAdvance
@@ -645,7 +660,7 @@ contains
 
     ! local variables
     logical :: first_time = .true.
-    character(len=CL) :: rpfile        
+    character(len=CL) :: rpfile
     character(*), parameter :: subName = '(datm_comp_run) '
     !-------------------------------------------------------------------------------
 
