@@ -584,7 +584,6 @@ contains
     chour = ''
     if (mod(next_tod,3600) == 0)chour = '0'
     if (mype == 0) call ufs_trace("cdeps", "ModelAdvance"//trim(chour), "B")
-    !if (mype == 0) print '(A,4i8,A)','XXX ',yr,mon,day,next_tod,'  '//chour
 #endif
 
     call ESMF_TraceRegionEnter(subname)
