@@ -1007,9 +1007,9 @@ contains
     chour = ''
     if (mod(tod, 3600) == 0) chour = '0'
 
-    if (mainproc) then
-       print '(A,4i6)','XXX CDEPS ',year,month,day,tod
-    endif
+    !if (mainproc) then
+    !   print '(A,4i6)','XXX CDEPS ',year,month,day,tod
+    !endif
   end function get_chour
 
 #ifdef CESMCOUPLED
