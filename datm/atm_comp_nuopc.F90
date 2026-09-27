@@ -8,7 +8,7 @@ module cdeps_datm_comp
   ! This is the NUOPC cap for DATM
   !----------------------------------------------------------------------------
 
-  use ESMF             , only : ESMF_VM, ESMF_VMBroadcast
+  use ESMF             , only : ESMF_VM, ESMF_VMBroadcast, ESMF_VMGet
   use ESMF             , only : ESMF_Mesh, ESMF_GridComp, ESMF_SUCCESS, ESMF_LogWrite
   use ESMF             , only : ESMF_GridCompSetEntryPoint, ESMF_METHOD_INITIALIZE
   use ESMF             , only : ESMF_MethodRemove, ESMF_State, ESMF_Clock, ESMF_TimeInterval
@@ -72,6 +72,10 @@ module cdeps_datm_comp
   use datm_datamode_atmw_mod    , only : datm_datamode_atmw_init_pointers
   use datm_datamode_atmw_mod    , only : datm_datamode_atmw_advance
 
+#ifdef UFS_TRACING
+  use ufs_trace_mod
+#endif
+
   implicit none
   private ! except
 
@@ -96,7 +100,7 @@ module cdeps_datm_comp
   integer                      :: flds_scalar_index_nextsw_cday = 0
   integer                      :: mpicom                    ! mpi communicator
   integer                      :: my_task                   ! my task in mpi communicator mpicom
-  logical                      :: mainproc                ! true of my_task == main_task
+  logical                      :: mainproc                  ! true of my_task == main_task
   integer                      :: inst_index                ! number of current instance (ie. 1)
   character(len=16)            :: inst_suffix = ""          ! char string associated with instance (ie. "_0001" or "")
   integer                      :: logunit                   ! logging unit number
@@ -151,6 +155,8 @@ module cdeps_datm_comp
   character(*), parameter :: u_FILE_u = &
        __FILE__
 
+  integer :: mype = -1
+
 !===============================================================================
 contains
 !===============================================================================
@@ -160,11 +166,22 @@ contains
     integer, intent(out) :: rc
 
     ! local variables
+    type(ESMF_VM) :: vm
     character(len=*),parameter  :: subname=trim(modName)//':(SetServices) '
     !-------------------------------------------------------------------------------
 
     rc = ESMF_SUCCESS
     call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)
+
+    call ESMF_GridCompGet(gcomp, vm=vm,rc=rc)
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
+    call ESMF_VMGet(vm, localpet=mype, rc=rc)
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+#ifdef UFS_TRACING
+    if (mype == 0) call ufs_trace_init()
+    if (mype == 0) call ufs_trace("cdeps", "SetServices", "B")
+#endif
 
     ! the NUOPC gcomp component will register the generic methods
     call NUOPC_CompDerive(gcomp, model_routine_SS, rc=rc)
@@ -197,6 +214,10 @@ contains
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     call ESMF_LogWrite(subname//' done', ESMF_LOGMSG_INFO)
+
+#ifdef UFS_TRACING
+    if (mype == 0) call ufs_trace("cdeps", "SetServices", "E")
+#endif
 
   end subroutine SetServices
 
@@ -244,6 +265,10 @@ contains
          export_all
 
     rc = ESMF_SUCCESS
+
+#ifdef UFS_TRACING
+    if (mype == 0) call ufs_trace("cdeps", "InitializeAdvertise", "B")
+#endif
 
     ! Initialize locally-declared namelist items to default values
     nextsw_cday_calc = 'cam6'
@@ -405,6 +430,10 @@ contains
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
     end select
 
+#ifdef UFS_TRACING
+    if (mype == 0) call ufs_trace("cdeps", "InitializeAdvertise", "E")
+#endif
+
   end subroutine InitializeAdvertise
 
   !===============================================================================
@@ -439,6 +468,10 @@ contains
 
     rc = ESMF_SUCCESS
     call ESMF_LogWrite(subname//' called', ESMF_LOGMSG_INFO)
+
+#ifdef UFS_TRACING
+    if (mype == 0) call ufs_trace("cdeps", "InitializeRealize", "B")
+#endif
 
     ! Initialize mesh, restart flag, compid, and logunit
     call ESMF_TraceRegionEnter('datm_strdata_init')
@@ -508,10 +541,16 @@ contains
     call dshr_state_SetScalar(nextsw_cday, flds_scalar_index_nextsw_cday, exportState, flds_scalar_name, flds_scalar_num, rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
+#ifdef UFS_TRACING
+    if (mype == 0) call ufs_trace("cdeps", "InitializeRealize", "E")
+#endif
+
   end subroutine InitializeRealize
 
   !===============================================================================
   subroutine ModelAdvance(gcomp, rc)
+
+    use ESMF, only : ESMF_ClockGetNextTime
 
     ! input/output variables
     type(ESMF_GridComp)  :: gcomp
@@ -535,10 +574,16 @@ contains
     real(R8)                :: orbObliqr     ! orb obliquity (radians)
     real(R8)                :: dayofYear
     character(len=*),parameter  :: subname=trim(modName)//':(ModelAdvance) '
+    character(len=1) :: chour
     !-------------------------------------------------------------------------------
 
     rc = ESMF_SUCCESS
 
+    chour = get_chour(gcomp, rc=rc)
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
+#ifdef UFS_TRACING
+    if (mype == 0) call ufs_trace("cdeps", "ModelAdvance"//trim(chour), "B")
+#endif
     call ESMF_TraceRegionEnter(subname)
     call shr_log_setLogUnit(logunit)
     call memcheck(subname, 5, my_task==main_task)
@@ -583,6 +628,10 @@ contains
 
     call ESMF_TraceRegionExit(subname)
 
+#ifdef UFS_TRACING
+    if (mype == 0) call ufs_trace("cdeps", "ModelAdvance"//trim(chour), "E")
+#endif
+
   end subroutine ModelAdvance
 
   !===============================================================================
@@ -614,6 +663,10 @@ contains
     !-------------------------------------------------------------------------------
 
     rc = ESMF_SUCCESS
+
+#ifdef UFS_TRACING
+    if (mype == 0) call ufs_trace("cdeps", "datm_run", "B")
+#endif
 
     call ESMF_TraceRegionEnter('DATM_RUN')
 
@@ -752,6 +805,10 @@ contains
 
     call ESMF_TraceRegionExit('datm_datamode')
     call ESMF_TraceRegionExit('DATM_RUN')
+
+#ifdef UFS_TRACING
+    if (mype == 0) call ufs_trace("cdeps", "datm_run", "E")
+#endif
 
   !--------
   contains
@@ -921,12 +978,55 @@ contains
     !-------------------------------------------------------------------------------
 
     rc = ESMF_SUCCESS
+
+#ifdef UFS_TRACING
+    if (mype == 0) call ufs_trace("cdeps", "ModelFinalize", "B")
+#endif
+
     if (my_task == main_task) then
        write(logunit,*)
        write(logunit,*) 'datm : end of main integration loop'
        write(logunit,*)
     end if
+
+#ifdef UFS_TRACING
+    if (mype == 0) call ufs_trace("cdeps", "ModelFinalize", "E")
+#endif
+
   end subroutine ModelFinalize
+  !> Set a string on hour intervals
+  !!
+  !! @param   gcomp  an ESMF_GridComp object
+  !! @param   rc     return code
+  !! @return  chour  character value
+  function get_chour(gcomp, rc) result(chour)
+    type(ESMF_GridComp), intent(in) :: gcomp !< ESMF_GridComp object
+    integer, intent(out)            :: rc    !< return code
+    character(len=1)                :: chour !< output character
+
+    ! local variables
+    type(ESMF_Clock) :: mclock
+    type(ESMF_Time)  :: mcurrTime
+    integer          :: year,month,day,tod
+
+    rc = ESMF_SUCCESS
+
+    call NUOPC_ModelGet(gcomp, modelClock=mclock, rc=rc)
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+    call ESMF_ClockGet(mclock, currTime=mcurrTime, rc=rc)
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+    call ESMF_TimeGet(mcurrTime, yy=year, mm=month, dd=day, s=tod, rc=rc)
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+    chour = ''
+    if (mod(tod, 3600) == 0) chour = '0'
+
+    !if (mainproc) then
+    !   print '(A,4i6)','XXX CDEPS ',year,month,day,tod
+    !endif
+  end function get_chour
 
 #ifdef CESMCOUPLED
 end module atm_comp_nuopc
